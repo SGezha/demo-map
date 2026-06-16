@@ -1,0 +1,689 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Товар в пути — красивая визуализация</title>
+
+    <script
+      src="https://api-maps.yandex.ru/2.1/?apikey=YOUR_API_KEY&lang=ru_RU"
+      type="text/javascript"
+    ></script>
+
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        font-family: Inter, Arial, sans-serif;
+        background: #f3f4f6;
+      }
+
+      .page {
+        width: 100%;
+        height: 100%;
+      }
+
+      .sidebar {
+        position: relative;
+        z-index: 10;
+        padding: 24px;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        margin-bottom: 14px;
+        border-radius: 999px;
+        color: #075985;
+        background: #e0f2fe;
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      .title {
+        margin: 0 0 8px;
+        color: #0f172a;
+        font-size: 28px;
+        line-height: 1.15;
+        font-weight: 800;
+      }
+
+      .subtitle {
+        margin: 0 0 22px;
+        color: #64748b;
+        font-size: 14px;
+        line-height: 1.45;
+      }
+
+      .status-card {
+        padding: 16px;
+        margin-bottom: 24px;
+        border: 1px solid #bfdbfe;
+        border-radius: 18px;
+        background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);
+        box-shadow: 0 12px 24px rgba(37, 99, 235, 0.08);
+      }
+
+      .status-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .status-label {
+        color: #1e3a8a;
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .status-badge {
+        flex: 0 0 auto;
+        padding: 6px 10px;
+        border-radius: 999px;
+        color: #ffffff;
+        background: #f97316;
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .status-route {
+        color: #334155;
+        font-size: 14px;
+        line-height: 1.45;
+      }
+
+      .steps-title {
+        margin: 0 0 14px;
+        color: #0f172a;
+        font-size: 16px;
+        font-weight: 800;
+      }
+
+      .steps {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .step {
+        position: relative;
+        display: grid;
+        grid-template-columns: 42px 1fr;
+        gap: 12px;
+        padding: 14px;
+        border: 1px solid #e2e8f0;
+        border-radius: 18px;
+        background: #ffffff;
+      }
+
+      .step.is-done {
+        border-color: #bfdbfe;
+        background: #f8fbff;
+      }
+
+      .step.is-current {
+        position: relative;
+        border: 1px solid #16a34a;
+        background: linear-gradient(135deg, #26f970 0%, #ffffff 100%);
+      }
+
+      .step.is-current::before {
+        content: 'Текущий этап';
+        position: absolute;
+        top: -11px;
+        right: 14px;
+        padding: 4px 9px;
+        border-radius: 999px;
+        color: #ffffff;
+        background: #16a34a;
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: 0.02em;
+      }
+
+      .step-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 42px;
+        height: 42px;
+        border-radius: 14px;
+        font-size: 22px;
+        background: #f1f5f9;
+      }
+
+      .step.is-done .step-icon {
+        background: #dbeafe;
+      }
+
+      .step.is-current .step-icon {
+        color: #ffffff;
+        box-shadow: 0 8px 18px rgba(249, 115, 22, 0.3);
+      }
+
+      .step-content {
+        min-width: 0;
+      }
+
+      .step-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 5px;
+      }
+
+      .step-name {
+        color: #0f172a;
+        font-size: 14px;
+        font-weight: 800;
+      }
+
+      .step-type {
+        flex: 0 0 auto;
+        padding: 4px 8px;
+        border-radius: 999px;
+        color: #475569;
+        background: #f1f5f9;
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .step.is-current .step-type {
+        display: none;
+        color: #9a3412;
+        background: #fed7aa;
+      }
+
+      .step-description {
+        margin: 0;
+        color: #64748b;
+        font-size: 13px;
+        line-height: 1.4;
+      }
+
+      .legend {
+        display: grid;
+        gap: 10px;
+        margin-top: 24px;
+        padding: 14px;
+        border-radius: 16px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+      }
+
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: #475569;
+        font-size: 13px;
+      }
+
+      .line-sample {
+        width: 32px;
+        height: 4px;
+        border-radius: 999px;
+      }
+
+      .line-sample.done {
+        background: #2563eb;
+      }
+
+      .line-sample.current {
+        background: #f97316;
+      }
+
+      .line-sample.road {
+        background: #16a34a;
+      }
+
+      #map {
+        width: 100%;
+        height: 60svh;
+      }
+
+      /* Скрыть логотип Яндекс.Карт */
+      [class*="ymaps-"][class*="-copyright"] {
+        display: none !important;
+      }
+
+      /* ── Mobile ── */
+      @media (max-width: 480px) {
+        .sidebar {
+          padding: 16px;
+        }
+
+        .title {
+          font-size: 22px;
+        }
+
+        .steps-title {
+          font-size: 15px;
+          margin-bottom: 12px;
+        }
+
+        .step {
+          grid-template-columns: 36px 1fr;
+          gap: 10px;
+          padding: 12px;
+          border-radius: 14px;
+        }
+
+        .step-icon {
+          width: 36px;
+          height: 36px;
+          border-radius: 10px;
+          font-size: 18px;
+        }
+
+        .step-name {
+          font-size: 15px;
+        }
+
+        .step-type {
+          font-size: 12px;
+          padding: 3px 7px;
+        }
+
+        .step-description {
+          font-size: 14px;
+          line-height: 1.45;
+        }
+
+        .step.is-current::before {
+          font-size: 12px;
+        }
+
+        .legend {
+          margin-top: 16px;
+          padding: 12px;
+        }
+
+        .legend-item {
+          font-size: 14px;
+        }
+      }
+
+      .vehicle-label {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        border: 3px solid #ffffff;
+        border-radius: 999px;
+        background: #2563eb;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.28);
+        color: white;
+        font-size: 23px;
+      }
+
+      .vehicle-label.ship {
+        background: linear-gradient(135deg, #f97316, #fb923c);
+      }
+
+      .vehicle-label.truck {
+        background: linear-gradient(135deg, #16a34a, #84cc16);
+      }
+
+      .point-label {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border: 3px solid white;
+        border-radius: 999px;
+        background: #0f172a;
+        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.24);
+        color: white;
+        font-size: 13px;
+        font-weight: 900;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="page">
+      <div id="map"></div>
+
+      <aside class="sidebar">
+        <h1 class="title">Товар в пути</h1>
+
+        <h2 class="steps-title">Маршрут поставки</h2>
+
+        <ol class="steps">
+          <li class="step is-done">
+            <div class="step-icon">🚢</div>
+            <div class="step-content">
+              <div class="step-header">
+                <div class="step-name">1. Порт Сантос</div>
+                <div class="step-type">Пройдено</div>
+              </div>
+              <p class="step-description">
+                Отправление из Porto de Santos, Бразилия.
+              </p>
+            </div>
+          </li>
+
+          <li class="step is-done">
+            <div class="step-icon">🚢</div>
+            <div class="step-content">
+              <div class="step-header">
+                <div class="step-name">2. Порт Стамбул</div>
+                <div class="step-type">Пройдено</div>
+              </div>
+              <p class="step-description">
+                Перевалочный этап перед заходом в Чёрное море.
+              </p>
+            </div>
+          </li>
+
+          <li class="step is-current">
+            <div class="step-icon">🚢</div>
+            <div class="step-content">
+              <div class="step-header">
+                <div class="step-name">3. Порт Новороссийск</div>
+                <div class="step-type">Море</div>
+              </div>
+              <p class="step-description">
+                Товар находится в пути из Стамбула в
+                Новороссийск.
+              </p>
+            </div>
+          </li>
+
+          <li class="step">
+            <div class="step-icon">🚚</div>
+            <div class="step-content">
+              <div class="step-header">
+                <div class="step-name">4. Ростов-на-Дону</div>
+                <div class="step-type">Суша</div>
+              </div>
+              <p class="step-description">
+                Автомобильная доставка до ул. Саратовская, 40, стр. 2.
+              </p>
+            </div>
+          </li>
+        </ol>
+
+        <div class="legend">
+          <div class="legend-item">
+            <span class="line-sample done"></span>
+            Пройденный морской путь
+          </div>
+
+          <div class="legend-item">
+            <span class="line-sample current"></span>
+            Текущий морской этап
+          </div>
+
+          <div class="legend-item">
+            <span class="line-sample road"></span>
+            Будущая автомобильная доставка
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <script>
+      ymaps.ready(init)
+
+      function getPointOnPolyline(coords, progress) {
+        if (progress <= 0) {
+          return coords[0]
+        }
+
+        if (progress >= 1) {
+          return coords[coords.length - 1]
+        }
+
+        const distances = []
+        let totalDistance = 0
+
+        for (let i = 0; i < coords.length - 1; i += 1) {
+          const distance = ymaps.coordSystem.geo.getDistance(
+            coords[i],
+            coords[i + 1]
+          )
+
+          distances.push(distance)
+          totalDistance += distance
+        }
+
+        const targetDistance = totalDistance * progress
+        let passedDistance = 0
+
+        for (let i = 0; i < distances.length; i += 1) {
+          const segmentDistance = distances[i]
+
+          if (passedDistance + segmentDistance >= targetDistance) {
+            const segmentProgress =
+              (targetDistance - passedDistance) / segmentDistance
+
+            return [
+              coords[i][0] +
+                (coords[i + 1][0] - coords[i][0]) * segmentProgress,
+              coords[i][1] + (coords[i + 1][1] - coords[i][1]) * segmentProgress
+            ]
+          }
+
+          passedDistance += segmentDistance
+        }
+
+        return coords[coords.length - 1]
+      }
+
+      function createHtmlIcon(className, content, size) {
+        return {
+          iconLayout: 'default#imageWithContent',
+          iconImageHref:
+            'data:image/svg+xml;charset=utf-8,' +
+            encodeURIComponent(
+              '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>'
+            ),
+          iconImageSize: [size, size],
+          iconImageOffset: [-size / 2, -size / 2],
+          iconContentLayout: ymaps.templateLayoutFactory.createClass(
+            `<div class="${className}">${content}</div>`
+          )
+        }
+      }
+
+      function addPolyline(map, coords, options, hint) {
+        const polyline = new ymaps.Polyline(
+          coords,
+          {
+            hintContent: hint
+          },
+          options
+        )
+
+        map.geoObjects.add(polyline)
+
+        return polyline
+      }
+
+      function init() {
+        const santos = {
+          title: 'Порт Сантос',
+          coords: [-23.96737, -46.32372]
+        }
+
+        const istanbul = {
+          title: 'Порт Стамбул',
+          coords: [41.0068, 28.9732]
+        }
+
+        const novorossiysk = {
+          title: 'Порт Новороссийск',
+          coords: [44.741618, 37.781983]
+        }
+
+        const rostov = {
+          title: 'Ростов-на-Дону, Саратовская улица, 40, стр. 2',
+          coords: [47.245096, 39.672487]
+        }
+
+        const seaRouteSantosToIstanbul = [
+          santos.coords,
+          [-20.5, -39.5],
+          [-12.5, -34.0],
+          [-3.0, -28.0],
+          [8.0, -24.0],
+          [18.5, -22.0],
+          [28.5, -18.5],
+          [35.5, -11.0],
+          [36.0, -6.0],
+          [36.1, -5.35],
+          [36.4, -1.5],
+          [37.3, 4.5],
+          [37.6, 10.5],
+          [38.0, 16.0],
+          [38.6, 21.0],
+          [39.4, 25.0],
+          istanbul.coords
+        ]
+
+        const seaRouteIstanbulToNovorossiysk = [
+          istanbul.coords,
+          [41.45, 29.8],
+          [41.85, 31.1],
+          [42.35, 32.7],
+          [43.0, 34.2],
+          [43.65, 35.6],
+          [44.25, 36.8],
+          novorossiysk.coords
+        ]
+
+        const roadRouteNovorossiyskToRostov = [
+          novorossiysk.coords,
+          [44.88, 38.05],
+          [45.05, 38.35],
+          [45.22, 38.62],
+          [45.45, 38.95],
+          [45.9, 39.25],
+          [46.35, 39.45],
+          [46.8, 39.58],
+          rostov.coords
+        ]
+
+        /*
+          Товар может находиться только на одном этапе:
+          - предыдущие этапы считаются пройденными;
+          - текущий этап выделяется целиком;
+          - процента прохождения внутри этапа нет.
+        */
+        const currentPosition = istanbul.coords
+
+        const map = new ymaps.Map('map', {
+          center: [38, 18],
+          zoom: 4,
+          controls: ['fullscreenControl']
+        })
+
+        map.behaviors.disable('scrollZoom')
+
+        // Пройденный морской путь: Сантос → Стамбул.
+        addPolyline(
+          map,
+          seaRouteSantosToIstanbul,
+          {
+            strokeColor: '#2563EB',
+            strokeWidth: 5,
+            strokeOpacity: 0.9
+          },
+          'Пройденный морской путь: Сантос → Стамбул'
+        )
+
+        // Текущий морской этап: Стамбул → Новороссийск.
+        addPolyline(
+          map,
+          seaRouteIstanbulToNovorossiysk,
+          {
+            strokeColor: '#F97316',
+            strokeWidth: 6,
+            strokeOpacity: 0.95,
+            strokeStyle: 'dash'
+          },
+          'Текущий морской этап: Стамбул → Новороссийск'
+        )
+
+        // Будущий автомобильный этап: Новороссийск → Ростов-на-Дону.
+        addPolyline(
+          map,
+          roadRouteNovorossiyskToRostov,
+          {
+            strokeColor: '#16A34A',
+            strokeWidth: 5,
+            strokeOpacity: 0.85,
+            strokeStyle: 'shortdash'
+          },
+          'Будущий автомобильный этап: Новороссийск → Ростов-на-Дону'
+        )
+
+        const points = [santos, istanbul, novorossiysk, rostov]
+
+        points.forEach((point, index) => {
+          const number = index + 1
+
+          const placemark = new ymaps.Placemark(
+            point.coords,
+            {
+              balloonContent: `<strong>${number}. ${point.title}</strong>`,
+              hintContent: point.title
+            },
+            createHtmlIcon('point-label', String(number), 32)
+          )
+
+          map.geoObjects.add(placemark)
+        })
+
+        const futureTruckPosition = getPointOnPolyline(
+          roadRouteNovorossiyskToRostov,
+          0.45
+        )
+
+        const currentShip = new ymaps.Placemark(
+          currentPosition,
+          {
+            balloonContent:
+              '<strong>Товар сейчас здесь</strong><br>Текущий этап: Стамбул → Новороссийск',
+            hintContent: 'Текущее положение товара'
+          },
+          createHtmlIcon('vehicle-label ship', '☕︎', 44)
+        )
+
+        map.geoObjects.add(currentShip)
+
+        // Зумируем на текущий этап: Стамбул → Новороссийск (+небольшой запас)
+        const currentStageBounds = ymaps.util.bounds.fromPoints(
+          seaRouteIstanbulToNovorossiysk
+        )
+
+        map.setBounds(currentStageBounds, {
+          checkZoomRange: true,
+          zoomMargin: [60, 60, 60, 60]
+        })
+      }
+    </script>
+  </body>
+</html>
